@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teclea Rápido</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --key: #eceef2;
+    --key-edge: #d5d9e0;
+    --text: #1b1e24;
+    --muted: #6b7280;
+    --faint: #a3a9b4;
+    --line: #e3e6eb;
+    --accent: #2563eb;
+    --ok: #15803d;
+    --err: #dc2626;
+    --err-bg: #fde2e2;
+    --heat: #d9480f;
+    --f-pinky: #7c3aed;
+    --f-ring: #0d9488;
+    --f-middle: #d97706;
+    --f-index: #2563eb;
+    --f-thumb: #6b7280;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121315; --surface: #1a1b1e; --key: #26282d; --key-edge: #34373e;
+      --text: #e8eaee; --muted: #9aa1ad; --faint: #5d636e; --line: #2c2f35;
+      --accent: #60a5fa; --ok: #4ade80; --err: #f87171; --err-bg: #4a1f22; --heat: #ff7a3d;
+      --f-pinky: #8b5cf6; --f-ring: #0f9f8f; --f-middle: #c98204; --f-index: #3b82f6; --f-thumb: #8b919c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121315; --surface: #1a1b1e; --key: #26282d; --key-edge: #34373e;
+    --text: #e8eaee; --muted: #9aa1ad; --faint: #5d636e; --line: #2c2f35;
+    --accent: #60a5fa; --ok: #4ade80; --err: #f87171; --err-bg: #4a1f22; --heat: #ff7a3d;
+    --f-pinky: #8b5cf6; --f-ring: #0f9f8f; --f-middle: #c98204; --f-index: #3b82f6; --f-thumb: #8b919c;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .status { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .status.warn { color: var(--err); }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .tabs, .seg { display: inline-flex; background: var(--key); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .tabs button, .seg button {
+    border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 14px;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .tabs button.on, .seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
+  .controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  select, textarea {
+    font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--key-edge); border-radius: 8px; padding: 5px 8px;
+  }
+  textarea { width: 100%; min-height: 70px; resize: vertical; margin-bottom: 12px; }
+  .hidden { display: none !important; }
+
+  .live { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
+  .live div { font-size: 13px; color: var(--muted); }
+  .live b { display: block; font-size: 24px; color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .focus-tag { margin-left: auto; align-self: flex-end; font-size: 13px; color: var(--muted); }
+
+  .text {
+    position: relative; font: 24px/2.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    height: calc(2.1em * 3); overflow: hidden; color: var(--faint); user-select: none; margin: 4px 0 8px;
+    scroll-behavior: smooth;
+  }
+  .text .w { display: inline-block; white-space: pre; }
+  .text span.c { border-radius: 3px; }
+  .text .c.ok { color: var(--text); }
+  .text .c.fix { color: var(--err); }
+  .text .c.cur { background: color-mix(in oklab, var(--accent) 22%, transparent); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
+  .text .c.cur.bad { background: var(--err-bg); box-shadow: inset 0 -3px 0 var(--err); }
+  .hint { font-size: 14px; color: var(--muted); min-height: 22px; }
+  .hint b { color: var(--text); }
+  .hint .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 0 2px; vertical-align: -1px; }
+
+  .kb { display: flex; flex-direction: column; gap: 5px; margin: 14px auto 0; max-width: 1040px; user-select: none; }
+  .kb .row { display: flex; gap: 5px; }
+  .kb .k {
+    flex: var(--w, 1) var(--w, 1) 0; min-width: 0; height: 44px; border-radius: 7px; position: relative;
+    background: var(--key); border: 1px solid var(--key-edge); border-bottom-width: 3px;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--text);
+    transition: background .08s, transform .08s;
+  }
+  .kb .k.sp { visibility: hidden; }
+  .kb .k small { position: absolute; top: 2px; left: 6px; font-size: 10px; color: var(--muted); }
+  .kb .k.mod { font-size: 12px; color: var(--muted); }
+  .kb .k.bump::after { content: ""; position: absolute; bottom: 6px; width: 10px; height: 2px; border-radius: 2px; background: var(--muted); }
+  .kb.fingers .k[data-f] { background: color-mix(in oklab, var(--fc) 20%, var(--key)); border-color: color-mix(in oklab, var(--fc) 45%, var(--key-edge)); }
+  .kb .k.next { outline: 3px solid var(--fc, var(--accent)); outline-offset: 1px; background: color-mix(in oklab, var(--fc) 55%, var(--key)) !important; transform: translateY(-1px); }
+  .kb .k.wrong { background: var(--err) !important; color: #fff; }
+  .k[data-f^="L5"], .k[data-f^="R5"] { --fc: var(--f-pinky); }
+  .k[data-f^="L4"], .k[data-f^="R4"] { --fc: var(--f-ring); }
+  .k[data-f^="L3"], .k[data-f^="R3"] { --fc: var(--f-middle); }
+  .k[data-f^="L2"], .k[data-f^="R2"] { --fc: var(--f-index); }
+  .k[data-f="T"] { --fc: var(--f-thumb); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  .results { text-align: center; padding: 10px 0 4px; }
+  .results .big { display: flex; justify-content: center; gap: 36px; flex-wrap: wrap; margin: 6px 0 14px; }
+  .results .big div { font-size: 13px; color: var(--muted); }
+  .results .big b { display: block; font-size: 38px; color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
+  .results p { color: var(--muted); margin: 6px 0; }
+  .learn { max-width: 640px; margin: 10px auto 14px; text-align: left; font-size: 14px; color: var(--muted); }
+  .learn div { padding: 6px 0; border-top: 1px solid var(--key); }
+  .learn b { color: var(--text); font-weight: 600; }
+  .learn .up { color: #2e9e5b; } .learn .down { color: var(--heat); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chips span { background: var(--key); border-radius: 6px; padding: 3px 8px; font-size: 14px; }
+  .chips span small { color: var(--muted); margin-left: 4px; }
+  .btn {
+    font: inherit; font-size: 14px; border: 0; border-radius: 9px; padding: 8px 16px; cursor: pointer;
+    background: var(--accent); color: #fff; margin: 8px 4px 0;
+  }
+  .btn.ghost { background: var(--key); color: var(--text); }
+  .btn.danger { background: transparent; color: var(--err); border: 1px solid var(--err); }
+  kbd { font: 12px ui-monospace, Menlo, monospace; background: var(--key); border: 1px solid var(--key-edge); border-radius: 4px; padding: 0 5px; }
+  .tips { font-size: 13px; color: var(--muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .tile div { font-size: 12px; color: var(--muted); }
+  .tile b { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile b small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .ax { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .tip {
+    position: absolute; pointer-events: none; background: var(--text); color: var(--bg);
+    font-size: 12px; padding: 5px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%);
+    opacity: 0; transition: opacity .1s; z-index: 5;
+  }
+  .empty { color: var(--muted); font-size: 14px; padding: 18px 0; text-align: center; }
+  .heatlegend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .heatlegend .bar { width: 140px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--key), var(--heat)); border: 1px solid var(--key-edge); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.key { font: 600 16px ui-monospace, Menlo, monospace; }
+  .rowhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .rowhead h2 { margin: 0; }
+
+  @media (max-width: 640px) {
+    .text { font-size: 18px; }
+    .kb .k { height: 34px; font-size: 12px; }
+    .kb .k small { display: none; }
+    .kb, .kb .row { gap: 3px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Teclea <span>Rápido</span></h1>
+    <span class="status" id="store-status"></span>
+    <nav class="tabs" id="tabs">
+      <button data-view="practice" class="on">Practicar</button>
+      <button data-view="stats">Mi progreso</button>
+    </nav>
+  </header>
+
+  <!-- PRÁCTICA -->
+  <section id="view-practice">
+    <div class="card">
+      <div class="controls">
+        <div class="seg" id="modes">
+          <button data-mode="comunes">Palabras</button>
+          <button data-mode="frases">Textos con sentido</button>
+          <button data-mode="debiles">Mis puntos débiles</button>
+          <button data-mode="guia">Fila guía</button>
+          <button data-mode="agilidad">Agilidad</button>
+          <button data-mode="propio">Mi texto</button>
+        </div>
+        <label id="drill-wrap">Ejercicio
+          <select id="drill">
+            <option value="mezcla">Mezcla (se adapta a tus fallos)</option>
+            <option value="alternar">Alternar manos</option>
+            <option value="mismo">Mismo dedo, distinta fila</option>
+            <option value="rodar">Rodar los dedos</option>
+            <option value="espejo">Espejo: mismo dedo en ambas manos</option>
+            <option value="estirar">Estiramientos de índice y meñique</option>
+            <option value="silabas">Sílabas del español</option>
+            <option value="numeros">Fila de números</option>
+            <option value="combos">Mis combinaciones difíciles</option>
+            <option value="confusiones">Teclas que confundo</option>
+          </select>
+        </label>
+        <label id="tema-wrap">Tema
+          <select id="tema">
+            <option value="todos">Todos</option>
+            <option value="general">Solo general</option>
+            <option value="datos">Ciencia de datos y estadística</option>
+            <option value="matematicas">Matemáticas</option>
+            <option value="salud">Salud</option>
+          </select>
+        </label>
+        <label>Largo
+          <select id="len">
+            <option value="15">15 palabras</option>
+            <option value="30">30 palabras</option>
+            <option value="50">50 palabras</option>
+            <option value="100">100 palabras</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="tildes"> Tildes</label>
+        <label><input type="checkbox" id="punct"> Mayúsculas y puntuación</label>
+        <label><input type="checkbox" id="showkb"> Teclado en pantalla</label>
+        <label>Sonido
+          <select id="sound">
+            <option value="0">Apagado</option>
+            <option value="0.35">Suave</option>
+            <option value="0.8">Fuerte</option>
+          </select>
+        </label>
+      </div>
+      <textarea id="custom" class="hidden" placeholder="Pega aquí el texto que quieres practicar…"></textarea>
+
+      <div id="typing">
+        <div class="live">
+          <div><b id="l-wpm">0</b>PPM</div>
+          <div><b id="l-acc">100%</b>Precisión</div>
+          <div><b id="l-time">0:00</b>Tiempo</div>
+          <div><b id="l-prog">0%</b>Avance</div>
+          <div class="focus-tag" id="focus-tag"></div>
+        </div>
+        <div class="text" id="text"></div>
+        <div class="hint" id="hint"></div>
+      </div>
+
+      <div id="results" class="results hidden">
+        <div class="big">
+          <div><b id="r-wpm">0</b>palabras por minuto</div>
+          <div><b id="r-acc">0%</b>precisión</div>
+          <div><b id="r-time">0:00</b>tiempo</div>
+        </div>
+        <p id="r-cmp"></p>
+        <p id="r-keys"></p>
+        <div id="r-learn" class="learn"></div>
+        <button class="btn" id="again">Otra vez <kbd>Tab</kbd></button>
+        <button class="btn ghost" id="to-stats">Ver mi progreso</button>
+      </div>
+
+      <div id="kbwrap">
+        <div class="kb fingers" id="kb"></div>
+        <div class="legend">
+          <span><i style="background:var(--f-pinky)"></i>Meñique</span>
+          <span><i style="background:var(--f-ring)"></i>Anular</span>
+          <span><i style="background:var(--f-middle)"></i>Medio</span>
+          <span><i style="background:var(--f-index)"></i>Índice</span>
+          <span><i style="background:var(--f-thumb)"></i>Pulgar</span>
+        </div>
+      </div>
+    </div>
+    <p class="tips">
+      Empieza a escribir y el tiempo arranca solo. Si te equivocas, el texto no avanza hasta que pulses la tecla correcta.
+      <kbd>Tab</kbd> o <kbd>Esc</kbd> te dan un texto nuevo.
+      Deja los índices sobre <kbd>F</kbd> y <kbd>J</kbd> (tienen una marquita) y mira la pantalla, no tus manos.
+    </p>
+  </section>
+
+  <!-- ESTADÍSTICAS -->
+  <section id="view-stats" class="hidden">
+    <div class="rowhead">
+      <h2>Mostrar sesiones de</h2>
+      <div class="seg" id="statkind">
+        <button data-k="all" class="on">Todo</button>
+        <button data-k="texto">Textos</button>
+        <button data-k="agil">Agilidad</button>
+      </div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <h2>Velocidad por sesión (PPM)</h2>
+      <div class="chart" id="ch-wpm"></div>
+    </div>
+    <div class="card">
+      <h2>Precisión por sesión (%)</h2>
+      <div class="chart" id="ch-acc"></div>
+    </div>
+    <div class="card">
+      <div class="rowhead">
+        <h2>Mapa del teclado</h2>
+        <div class="seg" id="heatmode">
+          <button data-h="err" class="on">Dónde fallo</button>
+          <button data-h="slow">Dónde soy lento</button>
+        </div>
+      </div>
+      <div class="chart"><div class="kb" id="heatkb"></div></div>
+      <div class="heatlegend"><span id="hl-lo">0%</span><span class="bar"></span><span id="hl-hi">—</span><span id="hl-note"></span></div>
+    </div>
+    <div class="card">
+      <h2>Teclas que más te cuestan</h2>
+      <div id="worst"></div>
+    </div>
+    <div class="card">
+      <div class="rowhead">
+        <h2>Combinaciones que más te cuestan</h2>
+        <button class="btn ghost" id="practice-combos" style="margin:0">Practicarlas</button>
+      </div>
+      <div id="worst-bi"></div>
+    </div>
+    <div class="card">
+      <div class="rowhead">
+        <h2>Teclas que confundes</h2>
+        <button class="btn ghost" id="practice-conf" style="margin:0">Practicarlas</button>
+      </div>
+      <div id="conf"></div>
+    </div>
+    <div class="card">
+      <div class="rowhead">
+        <h2>Palabras en repaso</h2>
+        <button class="btn ghost" id="practice-review" style="margin:0">Repasarlas</button>
+      </div>
+      <div id="review"></div>
+    </div>
+    <button class="btn ghost" id="export">Exportar copia</button>
+    <button class="btn ghost" id="import">Importar copia</button>
+    <input type="file" id="import-file" accept=".json,application/json" class="hidden">
+    <button class="btn danger" id="reset">Borrar todo mi historial</button>
+  </section>
+</div>
+
+<script src="contenido.js"></script>
+<script>
+// ---------- Datos guardados ----------
+const STORE = 'teclea-rapido-v1';
+const defaults = () => ({
+  sessions: [],
+  keys: {},
+  bigrams: {},
+  conf: {},                 // confusiones: 'e>r' = esperaba E, pulsaste R
+  review: {},               // palabras falladas en repaso espaciado
+  seen: { w: {}, t: {} },   // última sesión en que viste cada palabra / texto
+  settings: { mode: 'comunes', tema: 'todos', drill: 'mezcla', len: 30, tildes: false, punct: false, showkb: true, sound: 0.35, custom: '' }
+});
+const withDefaults = saved => ({ ...defaults(), ...saved, settings: { ...defaults().settings, ...saved.settings } });
+let db = defaults();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE));
+  if (saved) db = withDefaults(saved);
+} catch (e) {}
+
+// Abierta con «Abrir Teclea Rápido.command», la app guarda en datos.json (servidor.py);
+// abierta como archivo suelto, solo puede guardar en el navegador.
+const ON_SERVER = location.protocol.startsWith('http');
+let serverOk = false, saveTimer = null;
+
+function setStatus(kind) {
+  const el = document.getElementById('store-status');
+  el.classList.toggle('warn', kind !== 'file');
+  el.textContent = {
+    file: 'Guardado en datos.json',
+    local: 'Solo se guarda en este navegador: abre la app con «Abrir Teclea Rápido.command»',
+    error: 'No se pudo guardar en datos.json: ¿cerraste la ventana del servidor?'
+  }[kind];
+}
+function pushServer() {
+  fetch('/api/datos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(db) })
+    .then(r => setStatus(r.ok ? 'file' : 'error'))
+    .catch(() => setStatus('error'));
+}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(db)); } catch (e) {}
+  if (!serverOk) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushServer, 300);
+}
+async function initStorage() {
+  if (!ON_SERVER) return setStatus('local');
+  try {
+    const data = await (await fetch('/api/datos')).json();
+    serverOk = true;
+    if (data && Array.isArray(data.sessions)) db = withDefaults(data);
+    else if (db.sessions.length) pushServer();
+    setStatus('file');
+  } catch (e) { setStatus('error'); }
+}
+
+// ---------- Teclado latinoamericano ----------
+// [tecla, con Mayús, dedo]  L/R = mano, 5 meñique … 2 índice, T pulgar
+const ROWS = [
+  [['|','°','L5'],['1','!','L5'],['2','"','L4'],['3','#','L3'],['4','$','L2'],['5','%','L2'],['6','&','R2'],['7','/','R2'],['8','(','R3'],['9',')','R4'],['0','=','R5'],["'",'?','R5'],['¿','¡','R5'],{id:'bksp',label:'⌫',w:2}],
+  [{id:'tab',label:'Tab',w:1.5},['q','Q','L5'],['w','W','L4'],['e','E','L3'],['r','R','L2'],['t','T','L2'],['y','Y','R2'],['u','U','R2'],['i','I','R3'],['o','O','R4'],['p','P','R5'],['´','¨','R5'],['+','*','R5'],{id:'enter',label:'Enter',w:1.5}],
+  [{id:'caps',label:'Bloq',w:1.75},['a','A','L5'],['s','S','L4'],['d','D','L3'],['f','F','L2'],['g','G','L2'],['h','H','R2'],['j','J','R2'],['k','K','R3'],['l','L','R4'],['ñ','Ñ','R5'],['{','[','R5'],['}',']','R5'],{id:'enter2',label:'',w:1.25}],
+  [{id:'shiftL',label:'Mayús',w:1.25,f:'L5'},['<','>','L5'],['z','Z','L5'],['x','X','L4'],['c','C','L3'],['v','V','L2'],['b','B','L2'],['n','N','R2'],['m','M','R2'],[',',';','R3'],['.',':','R4'],['-','_','R5'],{id:'shiftR',label:'Mayús',w:2.75,f:'R5'}],
+  [{id:'sp1',w:4,spacer:true},{id:'space',label:'',w:7,f:'T'},{id:'sp2',w:4,spacer:true}]
+];
+const FINGER_NAME = {
+  L5:'meñique izquierdo', L4:'anular izquierdo', L3:'medio izquierdo', L2:'índice izquierdo',
+  R2:'índice derecho', R3:'medio derecho', R4:'anular derecho', R5:'meñique derecho', T:'pulgar'
+};
+const FINGER_VAR = { 5:'--f-pinky', 4:'--f-ring', 3:'--f-middle', 2:'--f-index', T:'--f-thumb' };
+const fingerColor = f => `var(${FINGER_VAR[f === 'T' ? 'T' : f[1]]})`;
+
+const KEYS = {};      // id -> {id, base, shift, f}
+const CHARMAP = {};   // carácter -> {id, shift, dead}
+for (const row of ROWS) for (const k of row) {
+  if (Array.isArray(k)) {
+    const [base, sh, f] = k;
+    KEYS[base] = { id: base, base, shift: sh, f };
+    CHARMAP[base] = { id: base, shift: false };
+    CHARMAP[sh] = { id: base, shift: true };
+  } else if (!k.spacer) KEYS[k.id] = { id: k.id, f: k.f };
+}
+CHARMAP[' '] = { id: 'space', shift: false };
+for (const [acc, plain] of [['á','a'],['é','e'],['í','i'],['ó','o'],['ú','u']]) {
+  CHARMAP[acc] = { id: plain, shift: false, dead: { id: '´', shift: false } };
+  CHARMAP[acc.toUpperCase()] = { id: plain, shift: true, dead: { id: '´', shift: false } };
+}
+CHARMAP['ü'] = { id: 'u', shift: false, dead: { id: '´', shift: true } };
+CHARMAP['Ü'] = { id: 'u', shift: true, dead: { id: '´', shift: true } };
+
+function buildKeyboard(el) {
+  el.innerHTML = '';
+  const els = {};
+  for (const row of ROWS) {
+    const r = document.createElement('div');
+    r.className = 'row';
+    for (const k of row) {
+      const d = document.createElement('div');
+      d.className = 'k';
+      if (Array.isArray(k)) {
+        const [base, sh, f] = k;
+        const isLetter = base.toUpperCase() !== base;
+        d.dataset.f = f; d.dataset.id = base;
+        d.innerHTML = isLetter ? base.toUpperCase() : `<small>${sh}</small>${base}`;
+        if (base === 'f' || base === 'j') d.classList.add('bump');
+        els[base] = d;
+      } else {
+        d.style.setProperty('--w', k.w);
+        if (k.spacer) d.classList.add('sp');
+        else {
+          d.classList.add('mod'); d.textContent = k.label; d.dataset.id = k.id;
+          if (k.f) d.dataset.f = k.f;
+          els[k.id] = d;
+        }
+      }
+      r.appendChild(d);
+    }
+    el.appendChild(r);
+  }
+  return els;
+}
+
+// ---------- Palabras ----------
+const WORDS = `de la que el en los se del las un por con no una su para es al lo como más pero sus le ya este sí porque esta entre cuando muy sin sobre también me hasta hay donde quien desde todo nos durante todos uno les ni contra otros ese eso ante ellos esto antes algunos qué unos yo otro otras otra él tanto esa estos mucho nada muchos cual poco ella estar estas algunas algo nosotros mi mis tú te tu tus casa tiempo vida día año mundo país hombre mujer parte forma lugar trabajo agua noche ciudad momento persona historia ejemplo cosa caso mano familia grupo problema punto semana hora calle libro amigo padre madre hijo escuela música comida camino tierra fuego aire luz sol luna mar cielo árbol flor perro gato verde rojo azul blanco negro grande pequeño nuevo viejo bueno malo largo corto alto bajo fácil difícil rápido lento siempre nunca hoy mañana ayer ahora luego tarde temprano bien mal hacer tener decir poder ir ver dar saber querer llegar pasar deber poner parecer quedar creer hablar llevar dejar seguir encontrar llamar venir pensar salir volver tomar conocer vivir sentir mirar contar empezar esperar buscar entrar trabajar escribir perder entender pedir recibir recordar terminar aparecer conseguir comenzar servir sacar necesitar mantener leer caer cambiar presentar crear abrir acabar ganar formar traer partir aceptar realizar lograr explicar teclado dedo letra palabra velocidad práctica mejorar pantalla jugar correr cantar bailar viajar aprender enseñar niño niña señor señora mañana sueño español compañero montaña año cumpleaños baño otoño invierno verano primavera café ventana puerta mesa silla cocina jardín playa río bosque pueblo zapato juego queso pájaro pez kilo zona vez feliz voz cruz diez`.split(' ');
+const HOME = 'sala gala hada falda ala las da ha salda halla llaga jala dadas saga faja gasa asa alas hadas sagas fajas gasas salsa asdf jklñ fjfj dkdk slsl añña fada jaja dada ñaña lada gaff'.split(' ');
+const ACC = { á:'a', é:'e', í:'i', ó:'o', ú:'u', ü:'u', Á:'A', É:'E', Í:'I', Ó:'O', Ú:'U', Ü:'U' };
+const stripAcc = s => s.replace(/[áéíóúüÁÉÍÓÚÜ]/g, c => ACC[c]);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function keyStats(id) { return db.keys[id] || (db.keys[id] = { n: 0, err: 0, t: 0, tn: 0 }); }
+function weakLetters() {
+  const list = Object.entries(db.keys)
+    .filter(([id, s]) => /^[a-zñ]$/.test(id) && s.n >= 8)
+    .map(([id, s]) => ({ id, rate: s.err / s.n, ms: s.tn ? s.t / s.tn : 0 }));
+  if (list.length < 5) return [];
+  const maxMs = Math.max(...list.map(x => x.ms)) || 1;
+  list.forEach(x => x.score = x.rate * 4 + x.ms / maxMs);
+  return list.sort((a, b) => b.score - a.score).slice(0, 5).map(x => x.id);
+}
+
+// ---------- Agilidad: grupos cortos sin sentido que obligan a pensar cada tecla ----------
+const LEFT = 'qwertasdfgzxcvb', RIGHT = 'yuiophjklñnm';
+const COLUMNS = ['qaz', 'wsx', 'edc', 'rfv', 'tgb', 'yhn', 'ujm', 'ik', 'ol', 'pñ'];
+const MIRROR = [['f','j'],['d','k'],['s','l'],['a','ñ'],['r','u'],['e','i'],['w','o'],['q','p'],['t','y'],['g','h'],['v','m'],['b','n']];
+const ROLLS = ['asdf', 'jklñ', 'qwer', 'uiop', 'zxcv', 'sdf', 'jkl', 'wer', 'uio', 'xcv', 'asd', 'klñ', 'werf', 'uiol', 'sdfg', 'hjkl'];
+const REACH = ['fgf', 'jhj', 'ftf', 'jyj', 'fbf', 'jnj', 'frf', 'juj', 'fvf', 'jmj', 'ñpñ', 'aqa', 'aza', 'gtg', 'hyh', 'gbg', 'hnh', 'ftgb', 'jyhn', 'ded', 'kik', 'sws', 'lol'];
+const CLUSTERS = ['tr', 'pr', 'br', 'cr', 'gr', 'dr', 'fr', 'bl', 'cl', 'fl', 'gl', 'pl', 'ch', 'll', 'rr', 'nt', 'nd', 'st', 'mp', 'mb'];
+const VOWELS = 'aeiou';
+const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const sample = (str, n) => Array.from({ length: n }, () => pick([...str])).join('');
+
+function bigramStats(bi) { return db.bigrams[bi] || (db.bigrams[bi] = { n: 0, err: 0, t: 0, tn: 0 }); }
+function bigramList() {
+  return Object.entries(db.bigrams)
+    .filter(([, s]) => s.n >= 6)
+    .map(([bi, s]) => ({ bi, ...s, rate: s.err / s.n * 100, ms: s.tn ? s.t / s.tn : 0 }));
+}
+function weakBigrams(n = 8) {
+  const list = bigramList().filter(x => /^[a-zñ]{2}$/.test(x.bi));
+  if (list.length < 10) return [];
+  const maxMs = Math.max(...list.map(x => x.ms)) || 1;
+  return list.map(x => ({ bi: x.bi, score: x.rate / 25 + x.ms / maxMs }))
+    .sort((a, b) => b.score - a.score).slice(0, n).map(x => x.bi);
+}
+
+// ---------- Contenido: vocabulario por niveles y textos con sentido ----------
+const C = window.CONTENIDO || {};
+const splitWords = str => (str || '').split(/\s+/).filter(Boolean);
+const TIERS = [WORDS, [...splitWords(C.palabras2), ...splitWords(C.palabras4)], splitWords(C.palabras3)];
+// Las palabras de los textos también entran al vocabulario de nivel 3.
+for (const [, t] of C.textos || []) TIERS[2].push(...(t.toLowerCase().match(/[a-záéíóúüñ]{4,}/g) || []));
+{
+  const seen = new Set();
+  for (let i = 0; i < TIERS.length; i++) TIERS[i] = TIERS[i].filter(w => !seen.has(w) && [...w].every(c => CHARMAP[c]) && seen.add(w));
+}
+// Vocabulario técnico por área (puede repetir palabras generales: aquí cuentan como del área).
+const TECH = {};
+for (const [area, str] of Object.entries(C.tecnicas || {})) TECH[area] = [...new Set(splitWords(str))].filter(w => [...w].every(c => CHARMAP[c]));
+const TECH_ALL = [...new Set(Object.values(TECH).flat())];
+const VOCAB = [...new Set([...TIERS.flat(), ...TECH_ALL])];
+const TEXTOS = (C.textos || []).map(([tema, t]) => ({ id: t.slice(0, 40), tema, t }));
+// Qué temas de textos corresponden a cada opción del selector «Tema».
+const TEMA_TEXTOS = { datos: ['ciencia de datos', 'estadística'], matematicas: ['matemáticas'], salud: ['salud'] };
+const TECH_TEMAS = Object.values(TEMA_TEXTOS).flat();
+function textPool() {
+  const tema = db.settings.tema;
+  const pool = TEMA_TEXTOS[tema] ? TEXTOS.filter(x => TEMA_TEXTOS[tema].includes(x.tema))
+    : tema === 'general' ? TEXTOS.filter(x => !TECH_TEMAS.includes(x.tema)) : TEXTOS;
+  return pool.length ? pool : TEXTOS;
+}
+// Lista técnica a mezclar y en qué proporción, según el tema elegido.
+function techMix() {
+  const tema = db.settings.tema;
+  if (TECH[tema]) return { list: TECH[tema], share: 0.55 };
+  if (tema === 'general' || !TECH_ALL.length) return { list: [], share: 0 };
+  return { list: TECH_ALL, share: 0.15 };
+}
+
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sessNo = () => db.sessions.length;
+const wordsOf = t => t.toLowerCase().match(/[a-záéíóúüñ]+/g) || [];
+const splitSentences = t => (t.match(/[^.!?]+[.!?]+\s*/g) || [t]).map(x => x.trim());
+
+function weightedPick(items, weight) {
+  let total = 0;
+  const w = items.map(x => { const v = weight(x); total += v; return v; });
+  if (total <= 0) return null;
+  let r = Math.random() * total;
+  for (let i = 0; i < items.length; i++) if ((r -= w[i]) <= 0) return items[i];
+  return items[items.length - 1];
+}
+// Lo visto hace poco tiene menos probabilidad de volver a salir.
+function freshness(map, key, recent, mid) {
+  const last = map[key];
+  if (last === undefined) return 1;
+  const age = sessNo() - last;
+  return age < recent ? 0.08 : age < mid ? 0.4 : 1;
+}
+
+// ---------- Aprendizaje: qué te cuesta ahora mismo ----------
+function topConfusions(n = 4) {
+  return Object.entries(db.conf)
+    .filter(([k, v]) => v >= 2 && /^[a-zñ]>[a-zñ]$/.test(k))
+    .sort((a, b) => b[1] - a[1]).slice(0, n)
+    .map(([k, v]) => ({ a: k[0], b: k[2], n: v }));
+}
+function weakProfile() { return { letters: weakLetters(), bigrams: weakBigrams(8), conf: topConfusions() }; }
+const hasWeak = P => P.letters.length || P.bigrams.length || P.conf.length;
+function weakScore(w, P) {
+  const s = stripAcc(w).toLowerCase();
+  let sc = 0;
+  for (const c of s) if (P.letters.includes(c)) sc += 1;
+  for (let i = 0; i < s.length - 1; i++) if (P.bigrams.includes(s.slice(i, i + 2))) sc += 2;
+  for (const { a, b } of P.conf) if (s.includes(a) && s.includes(b)) sc += 1.5;
+  return sc;
+}
+const textWeakDensity = (t, P) => { const ws = wordsOf(t); return ws.reduce((a, w) => a + weakScore(w, P), 0) / Math.max(1, ws.length); };
+function focusLabel(P) {
+  const parts = [];
+  if (P.letters.length) parts.push(P.letters.slice(0, 3).map(c => c.toUpperCase()).join(' '));
+  if (P.bigrams.length) parts.push(P.bigrams.slice(0, 3).map(b => b.toUpperCase()).join(' '));
+  if (P.conf.length) parts.push(P.conf.slice(0, 2).map(x => `${x.a.toUpperCase()}↔${x.b.toUpperCase()}`).join(' '));
+  return parts.length ? 'Enfoque: ' + parts.join(' · ') : '';
+}
+
+// Repaso espaciado: una palabra fallada vuelve en la siguiente sesión;
+// cada vez que la escribes bien, tarda más en volver. Tras 4 aciertos, aprendida.
+const REVIEW_GAP = [0, 1, 3, 7];
+function dueReview() {
+  const now = sessNo();
+  return Object.entries(db.review)
+    .filter(([, r]) => r.due <= now)
+    .sort((a, b) => a[1].box - b[1].box || b[1].fails - a[1].fails)
+    .map(([w]) => w);
+}
+
+// Más palabras poco comunes a medida que subes de velocidad.
+function tierMix() {
+  const S = db.sessions.filter(s => kindOf(s) === 'texto').slice(-8);
+  const wpm = S.length ? S.reduce((a, s) => a + s.wpm, 0) / S.length : 0;
+  return wpm < 20 ? [0.65, 0.28, 0.07] : wpm < 35 ? [0.5, 0.33, 0.17] : wpm < 50 ? [0.4, 0.35, 0.25] : [0.3, 0.35, 0.35];
+}
+
+function genWords(n, P, { reviewShare = 0.2, weakShare = 0.3 } = {}) {
+  const out = [], used = new Set();
+  const add = w => { if (!w || used.has(w)) return false; used.add(w); out.push(w); return true; };
+  const review = dueReview().slice(0, Math.round(n * reviewShare));
+  review.forEach(add);
+  const fresh = w => freshness(db.seen.w, w, 3, 10);
+  const nWeak = hasWeak(P) ? Math.round(n * weakShare) : 0;
+  for (let i = 0, tries = 0; i < nWeak && tries < nWeak * 4; tries++) {
+    const w = weightedPick(VOCAB, w => used.has(w) ? 0 : weakScore(w, P) ** 2 * fresh(w));
+    if (!w) break;
+    if (add(w)) i++;
+  }
+  const mix = tierMix(), tech = techMix();
+  for (let tries = 0; out.length < n && tries < n * 6; tries++) {
+    if (Math.random() < tech.share) { add(weightedPick(tech.list, w => used.has(w) ? 0 : fresh(w))); continue; }
+    const r = Math.random(), tier = r < mix[0] ? 0 : r < mix[0] + mix[1] ? 1 : 2;
+    add(weightedPick(TIERS[tier], w => used.has(w) ? 0 : fresh(w)));
+  }
+  while (out.length < n) out.push(pick(VOCAB));
+  return { words: shuffle(out), nReview: review.length };
+}
+
+// ---------- Textos con sentido ----------
+function genFrases(target, P) {
+  const due = new Set(dueReview());
+  const r = Math.random(), mixed = ['todos', 'general'].includes(db.settings.tema);
+  if (mixed && C.escenas && C.escenas.length && r < 0.25) return genStory(target, P);
+  if (mixed && C.refranes && C.refranes.length && r < 0.33) return genRefranes(target, P, due);
+  return genBank(target, P, due);
+}
+function textWeight(t, id, P, due) {
+  const ws = wordsOf(t);
+  const dueHits = ws.filter(w => due.has(w)).length;
+  return freshness(db.seen.t, id, 12, 35) * (1 + textWeakDensity(t, P) * 2 + dueHits);
+}
+function genBank(target, P, due) {
+  const parts = [], ids = [], goal = target * 0.85;
+  const pool = textPool();
+  const first = weightedPick(pool, x => textWeight(x.t, x.id, P, due));
+  let cur = first, count = 0;
+  while (cur) {
+    ids.push(cur.id);
+    for (const sent of splitSentences(cur.t)) {
+      parts.push(sent);
+      count += sent.split(' ').length;
+      if (count >= goal) break;
+    }
+    if (count >= goal) break;
+    cur = weightedPick(pool, x => ids.includes(x.id) ? 0 : (x.tema === first.tema ? 3 : 1) * textWeight(x.t, x.id, P, due));
+  }
+  return { text: parts.join(' '), note: `Texto · ${first.tema}`, seenT: ids };
+}
+function genRefranes(target, P, due) {
+  const parts = [], ids = [];
+  let count = 0;
+  while (count < target * 0.85 && ids.length < C.refranes.length) {
+    const i = weightedPick([...C.refranes.keys()], i => ids.includes('r' + i) ? 0 : textWeight(C.refranes[i], 'r' + i, P, due));
+    ids.push('r' + i);
+    parts.push(C.refranes[i]);
+    count += C.refranes[i].split(' ').length;
+  }
+  return { text: parts.join(' '), note: 'Refranes', seenT: ids };
+}
+function buildStory(target) {
+  const [subj, g, num, pron] = pick(C.sujetos);
+  const pl = num === 'p';
+  const vp = ([sg, p, rest]) => `${pl ? p : sg} ${rest}`.replace(/\{o\}/g, (g === 'f' ? 'a' : 'o') + (pl ? 's' : ''));
+  const conns = shuffle([...C.conectores]);
+  const out = [], goal = target * 0.85;
+  const scenes = shuffle([...C.escenas]);
+  let count = 0, ci = 0;
+  for (let si = 0; si < scenes.length && count < goal; si++) {
+    const sc = scenes[si];
+    const opener = si === 0 ? pick(C.inicios) : pick(['Más tarde', 'Por la tarde', 'Después de eso', 'Ya de noche']);
+    out.push(`${opener}, ${si === 0 ? subj : pron} ${vp(sc.entrada)}.`);
+    const k = Math.min(sc.pasos.length, Math.max(3, Math.round((target - count) / 8)));
+    const last = count + (k + 1) * 8 >= goal || si === scenes.length - 1;
+    const idx = shuffle([...sc.pasos.keys()]).slice(0, k).sort((a, b) => a - b);
+    idx.forEach((pi, j) => {
+      const conn = j === 0 ? 'Primero,' : last && j === idx.length - 1 ? pick(C.finales) : conns[ci++ % conns.length];
+      const who = !conn.endsWith(',') && Math.random() < 0.25 ? pron + ' ' : '';
+      out.push(`${conn} ${who}${vp(sc.pasos[pi])}.`);
+    });
+    count = out.join(' ').split(' ').length;
+  }
+  return out.join(' ');
+}
+function genStory(target, P) {
+  let best = null;
+  for (let k = 0; k < 6; k++) {
+    const t = buildStory(target);
+    const sc = textWeakDensity(t, P) + Math.random() * 0.3;
+    if (!best || sc > best.sc) best = { t, sc };
+  }
+  return { text: best.t, note: 'Una pequeña historia', seenT: [] };
+}
+
+const DRILLS = {
+  alternar: {
+    note: 'Una letra de cada mano, siempre alternando',
+    gen: () => { const len = randInt(4, 6), start = Math.random() < 0.5; let g = ''; for (let i = 0; i < len; i++) g += pick([...((i % 2 === 0) === start ? LEFT : RIGHT)]); return g; }
+  },
+  mismo: {
+    note: 'El mismo dedo sube y baja entre filas: no muevas la mano entera',
+    gen: () => { const col = pick(COLUMNS); let g; do { g = sample(col, randInt(4, 5)); } while (new Set(g).size < 2); return g; }
+  },
+  rodar: {
+    note: 'Dedos seguidos de una misma mano, como una ola',
+    gen: () => { let r = pick(ROLLS); if (Math.random() < 0.5) r = [...r].reverse().join(''); return Math.random() < 0.3 ? r + [...r].reverse().join('').slice(1) : r; }
+  },
+  espejo: {
+    note: 'El mismo dedo en las dos manos (F↔J, D↔K…)',
+    gen: () => { const [a, b] = pick(MIRROR), [c, d] = pick(MIRROR); return Math.random() < 0.5 ? a + b + a + b : a + b + c + d; }
+  },
+  estirar: {
+    note: 'Estira el dedo y vuelve siempre a la fila guía',
+    gen: () => pick(REACH)
+  },
+  silabas: {
+    note: 'Las combinaciones más comunes del español',
+    gen: () => {
+      const syl = () => { const r = Math.random(); if (r < 0.15) return pick(['que', 'qui', 'gue', 'gui']); if (r < 0.3) return pick([...'bcdlmnpst']) + pick(['ue', 'ie', 'io', 'ia', 'ua']); return pick(CLUSTERS) + pick([...VOWELS]); };
+      return syl() + syl();
+    }
+  },
+  numeros: {
+    note: 'Sube a los números sin mirar y vuelve a la fila guía',
+    gen: () => Math.random() < 0.5 ? sample('0123456789', randInt(3, 4)) : pick(['f4f', 'f5f', 'j6j', 'j7j', 'd3d', 'k8k', 's2s', 'l9l', 'a1a', 'ñ0ñ', 'f4r', 'j7u', 'd3e', 'k8i'])
+  },
+  combos: {
+    note: '',
+    gen: weak => { const bi = pick(weak); const r = Math.random(); if (r < 0.4) return bi + bi; const ws = VOCAB.filter(w => stripAcc(w).includes(bi)); return ws.length && r < 0.8 ? stripAcc(pick(ws)) : pick([...VOWELS]) + bi + pick([...VOWELS]); }
+  },
+  confusiones: {
+    note: '',
+    gen: (weak, conf) => {
+      const { a, b } = pick(conf), r = Math.random();
+      if (r < 0.35) return pick([a + b + a + b, b + a + b + a, a + a + b + b, a + b + b + a]);
+      const ws = VOCAB.filter(w => { const s = stripAcc(w); return s.length <= 9 && s.includes(a) && s.includes(b); });
+      return ws.length && r < 0.85 ? stripAcc(pick(ws)) : a + pick([...VOWELS]) + b + pick([...VOWELS]);
+    }
+  }
+};
+
+function generateAgility(s) {
+  const weak = weakBigrams(), conf = topConfusions();
+  let drill = s.drill, note;
+  if (drill === 'combos') {
+    if (!weak.length) {
+      note = 'Aún no tengo datos de tus combinaciones: practica un poco más. Mientras tanto, una mezcla.';
+      drill = 'mezcla';
+    } else note = 'Tus combinaciones difíciles: ' + weak.map(b => b.toUpperCase()).join(' · ');
+  }
+  if (drill === 'confusiones') {
+    if (!conf.length) {
+      note = 'Aún no he visto que confundas teclas: practica un poco más. Mientras tanto, una mezcla.';
+      drill = 'mezcla';
+    } else note = 'Teclas que confundes: ' + conf.map(x => `${x.a.toUpperCase()}↔${x.b.toUpperCase()}`).join(' · ');
+  }
+  if (drill === 'mezcla') note = note || (weak.length ? 'Mezcla con tus combinaciones difíciles' : 'Mezcla de todos los ejercicios');
+  else note = note || DRILLS[drill].note;
+  const groups = [];
+  const kinds = Object.keys(DRILLS).filter(k => !['combos', 'numeros', 'confusiones'].includes(k));
+  for (let i = 0; i < s.len; i++) {
+    let g;
+    if (drill === 'mezcla') {
+      const r = Math.random();
+      g = weak.length && r < 0.3 ? DRILLS.combos.gen(weak) : conf.length && r < 0.45 ? DRILLS.confusiones.gen(weak, conf) : DRILLS[pick(kinds)].gen();
+    } else g = DRILLS[drill].gen(weak, conf);
+    if (g === groups[groups.length - 1]) { i--; continue; }
+    groups.push(g);
+  }
+  return { text: groups.join(' '), note: note + ' · si fallas un grupo, se repite al final' };
+}
+
+function cleanCustom(t) {
+  return t.replace(/[“”«»]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, '-').replace(/…/g, '...').replace(/\s+/g, ' ').trim();
+}
+const typeable = t => [...t].filter(c => CHARMAP[c]).join('');
+
+function addPunct(words) {
+  const out = [];
+  let i = 0;
+  while (i < words.length) {
+    const n = Math.min(words.length - i, 4 + Math.floor(Math.random() * 8));
+    const sent = words.slice(i, i + n);
+    sent[0] = sent[0][0].toUpperCase() + sent[0].slice(1);
+    for (let j = 1; j < sent.length - 1; j++) if (Math.random() < 0.12) sent[j] += ',';
+    const r = Math.random();
+    if (r < 0.1) { sent[0] = '¿' + sent[0]; sent[sent.length - 1] += '?'; }
+    else if (r < 0.15) { sent[0] = '¡' + sent[0]; sent[sent.length - 1] += '!'; }
+    else sent[sent.length - 1] += '.';
+    out.push(...sent);
+    i += n;
+  }
+  return out;
+}
+
+// Deja el texto listo: solo caracteres del teclado y, si toca, sin tildes.
+// src conserva las tildes (misma longitud) para recordar bien las palabras a repasar.
+function finalize(src, note, extra = {}) {
+  src = typeable(src);
+  return { text: db.settings.tildes ? src : stripAcc(src), src, note, ...extra };
+}
+
+function generateText() {
+  const s = db.settings;
+  if (s.mode === 'agilidad') return generateAgility(s);
+  if (s.mode === 'propio') {
+    const t = typeable(cleanCustom(s.custom || ''));
+    return finalize(t || 'Pega tu propio texto en la caja de arriba.', 'Tu texto');
+  }
+  if (s.mode === 'guia') {
+    const words = Array.from({ length: s.len }, () => pick(HOME));
+    return finalize(words.join(' '), 'Solo la fila guía: A S D F · J K L Ñ', { noReview: true });
+  }
+
+  const P = weakProfile();
+  if (s.mode === 'frases' && TEXTOS.length) {
+    const r = genFrases(s.len, P);
+    let t = r.text;
+    if (!s.punct) t = t.toLowerCase().replace(/[.,;:¿?¡!()"]/g, '').replace(/\s+/g, ' ').trim();
+    return finalize(t, r.note, { focus: P, seenT: r.seenT });
+  }
+
+  let words, note;
+  if (s.mode === 'debiles') {
+    const due = dueReview().length;
+    if (!hasWeak(P) && !due) {
+      ({ words } = genWords(s.len, P));
+      note = 'Aún no tengo datos suficientes: practica un poco con «Palabras» o «Textos con sentido».';
+    } else {
+      const r = genWords(s.len, P, { reviewShare: 0.4, weakShare: 0.6 });
+      words = r.words;
+      note = [r.nReview ? `${r.nReview} palabras de repaso` : '', focusLabel(P)].filter(Boolean).join(' · ');
+    }
+  } else {
+    const r = genWords(s.len, P);
+    words = r.words;
+    const temaLabel = { datos: 'ciencia de datos y estadística', matematicas: 'matemáticas', salud: 'salud' }[s.tema];
+    note = [temaLabel ? 'Vocabulario de ' + temaLabel : 'Palabras variadas', r.nReview ? `${r.nReview} de repaso` : '', hasWeak(P) ? 'con tus puntos débiles' : ''].filter(Boolean).join(' · ');
+  }
+  if (s.punct) words = addPunct(words);
+  return finalize(words.join(' '), note, { focus: P });
+}
+
+// ---------- Sonido de máquina de escribir (sintetizado, sin archivos) ----------
+let actx = null, noise = null;
+function audio() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    noise = actx.createBuffer(1, actx.sampleRate * 0.3, actx.sampleRate);
+    const d = noise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function output(a) {
+  const g = a.createGain();
+  g.gain.value = +db.settings.sound;
+  g.connect(a.destination);
+  return g;
+}
+// Ráfaga de ruido filtrado: el golpe metálico del tipo contra el papel.
+function noiseHit(a, out, t, { freq, q = 1.2, gain, decay, rate = 1 }) {
+  const src = a.createBufferSource();
+  src.buffer = noise;
+  src.playbackRate.value = rate;
+  const f = a.createBiquadFilter();
+  f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const g = a.createGain();
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + decay);
+  src.connect(f).connect(g).connect(out);
+  src.start(t); src.stop(t + decay + 0.02);
+}
+// Tono que cae rápido: la resonancia del cuerpo de la máquina.
+function thump(a, out, t, { from, to = 50, gain, decay, type = 'triangle' }) {
+  const o = a.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(from, t);
+  o.frequency.exponentialRampToValueAtTime(to, t + decay);
+  const g = a.createGain();
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + decay);
+  o.connect(g).connect(out);
+  o.start(t); o.stop(t + decay + 0.02);
+}
+const SOUNDS = {
+  key(a, out, t) {
+    const v = Math.random();
+    noiseHit(a, out, t, { freq: 2400 + v * 900, gain: 0.9, decay: 0.045, rate: 0.9 + v * 0.2 });
+    noiseHit(a, out, t + 0.012, { freq: 5200, q: 3, gain: 0.25, decay: 0.02 });
+    thump(a, out, t, { from: 170 + v * 50, gain: 0.35, decay: 0.07 });
+  },
+  space(a, out, t) {
+    noiseHit(a, out, t, { freq: 1100, gain: 0.6, decay: 0.08 });
+    thump(a, out, t, { from: 110, to: 45, gain: 0.55, decay: 0.11 });
+  },
+  wrong(a, out, t) {
+    noiseHit(a, out, t, { freq: 700, q: 0.8, gain: 0.7, decay: 0.09 });
+    thump(a, out, t, { from: 95, to: 70, gain: 0.25, decay: 0.14, type: 'square' });
+  },
+  carriage(a, out, t) {
+    for (let i = 0; i < 5; i++) noiseHit(a, out, t + i * 0.028, { freq: 3200 - i * 150, q: 2, gain: 0.35, decay: 0.02 });
+    noiseHit(a, out, t + 0.16, { freq: 900, gain: 0.8, decay: 0.1 });
+    thump(a, out, t + 0.16, { from: 130, to: 50, gain: 0.5, decay: 0.12 });
+  },
+  bell(a, out, t) {
+    for (const [f, g] of [[1975, 0.35], [2960, 0.18], [4440, 0.07]]) {
+      const o = a.createOscillator();
+      o.type = 'sine'; o.frequency.value = f;
+      const env = a.createGain();
+      env.gain.setValueAtTime(g, t);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+      o.connect(env).connect(out);
+      o.start(t); o.stop(t + 1.5);
+    }
+  }
+};
+function play(name, delay = 0) {
+  if (!+db.settings.sound) return;
+  try {
+    const a = audio();
+    SOUNDS[name](a, output(a), a.currentTime + delay);
+  } catch (e) {}
+}
+
+// ---------- Práctica ----------
+const $ = id => document.getElementById(id);
+const textEl = $('text'), hintEl = $('hint');
+const kbEls = buildKeyboard($('kb'));
+let T = null; // estado del intento actual
+
+function newTest() {
+  const { text, note, src, focus, seenT, noReview } = generateText();
+  T = {
+    src: src || text, focus, seenT, noReview, sk: {},
+    text: '', pos: 0, start: 0, last: 0, touched: [], errAt: [], errors: 0, keyErr: {}, dead: false, done: false,
+    spans: [], word: null, agil: db.settings.mode === 'agilidad', groupStart: 0, repeats: 0
+  };
+  $('focus-tag').textContent = note;
+  textEl.innerHTML = '';
+  appendText(text);
+  textEl.scrollTop = 0;
+  $('typing').classList.remove('hidden');
+  $('results').classList.add('hidden');
+  updateCursor();
+  updateLive();
+}
+
+function appendText(str) {
+  for (const ch of str) {
+    if (!T.word) { T.word = document.createElement('span'); T.word.className = 'w'; textEl.appendChild(T.word); }
+    const c = document.createElement('span');
+    c.className = 'c';
+    c.textContent = ch;
+    T.word.appendChild(c);
+    T.spans.push(c);
+    if (ch === ' ') T.word = null;
+  }
+  T.text += str;
+}
+
+// En agilidad, un grupo con errores se añade otra vez al final (máximo 10 repeticiones por intento).
+function closeGroup(end) {
+  const from = T.groupStart;
+  T.groupStart = T.pos;
+  if (end <= from || T.repeats >= 10) return;
+  if (!T.errAt.slice(from, end).some(Boolean)) return;
+  T.repeats++;
+  appendText(' ' + T.text.slice(from, end));
+  if (T.pos === end) T.groupStart = T.pos + 1;
+}
+
+function clearKbMarks() {
+  for (const el of Object.values(kbEls)) el.classList.remove('next');
+}
+function markKey(id) { if (kbEls[id]) kbEls[id].classList.add('next'); }
+function shiftFor(id) { return KEYS[id] && KEYS[id].f && KEYS[id].f[0] === 'L' ? 'shiftR' : 'shiftL'; }
+
+function updateCursor() {
+  T.spans.forEach(s => s.classList.remove('cur', 'bad'));
+  clearKbMarks();
+  if (T.done) { hintEl.textContent = ''; return; }
+  const cur = T.spans[T.pos];
+  cur.classList.add('cur');
+  if (T.errAt[T.pos]) cur.classList.add('bad');
+  const top = cur.offsetTop;
+  const lh = cur.offsetHeight || 40;
+  if (T.lineTop !== undefined && top > T.lineTop) play('carriage', 0.05);
+  T.lineTop = top;
+  textEl.scrollTop = Math.max(0, top - lh);
+
+  const ch = T.text[T.pos];
+  const m = CHARMAP[ch];
+  if (!m) { hintEl.textContent = ''; return; }
+  let step = m, pre = '';
+  if (m.dead && !T.dead) { step = m.dead; pre = 'Primero la tilde: '; }
+  markKey(step.id);
+  if (step.shift) markKey(shiftFor(step.id));
+  const f = KEYS[step.id].f;
+  const label = ch === ' ' ? 'espacio' : `«${ch}»`;
+  let html = `${pre}Siguiente ${label} → <span class="dot" style="background:${fingerColor(f)}"></span><b>${FINGER_NAME[f]}</b>`;
+  if (step.shift) {
+    const sf = KEYS[shiftFor(step.id)].f;
+    html += ` + Mayús con el <b>${FINGER_NAME[sf]}</b>`;
+  }
+  hintEl.innerHTML = html;
+}
+
+function statId(ch) {
+  const m = CHARMAP[ch];
+  return m ? m.id : ch;
+}
+
+function flashWrong(k) {
+  const m = CHARMAP[k];
+  const el = m && kbEls[m.id];
+  if (!el) return;
+  el.classList.add('wrong');
+  setTimeout(() => el.classList.remove('wrong'), 180);
+}
+
+function tally(key, field) { (T.sk[key] || (T.sk[key] = { n: 0, err: 0 }))[field]++; }
+
+function handleKey(k) {
+  if (T.done) return;
+  const now = performance.now();
+  if (!T.start) { T.start = now; T.last = now; }
+  const exp = T.text[T.pos];
+  const id = statId(exp);
+  const st = keyStats(id);
+  const prev = T.text[T.pos - 1];
+  const biId = T.pos > 0 && prev !== ' ' && exp !== ' ' ? stripAcc(prev + exp).toLowerCase() : null;
+  const bi = biId ? bigramStats(biId) : null;
+  if (!T.touched[T.pos]) {
+    T.touched[T.pos] = true;
+    st.n++;
+    tally('k:' + id, 'n');
+    if (bi) { bi.n++; tally('b:' + biId, 'n'); }
+  }
+
+  if (k === exp) {
+    play(exp === ' ' ? 'space' : 'key');
+    const gap = now - T.last;
+    if (!T.errAt[T.pos] && T.pos > 0 && gap < 3000) {
+      st.t += gap; st.tn++;
+      if (bi) { bi.t += gap; bi.tn++; }
+    }
+    T.spans[T.pos].classList.add(T.errAt[T.pos] ? 'fix' : 'ok');
+    T.pos++;
+    T.last = now;
+    T.dead = false;
+    if (T.agil && exp === ' ') closeGroup(T.pos - 1);
+    else if (T.agil && T.pos >= T.text.length) closeGroup(T.pos);
+    if (T.pos >= T.text.length) return finish();
+  } else {
+    if (!T.errAt[T.pos]) {
+      T.errAt[T.pos] = true;
+      st.err++;
+      tally('k:' + id, 'err');
+      if (bi) { bi.err++; tally('b:' + biId, 'err'); }
+      T.keyErr[id] = (T.keyErr[id] || 0) + 1;
+      const typed = statId(k);
+      if (typed !== id && /^[a-zñ]$/.test(id) && /^[a-zñ]$/.test(typed)) db.conf[id + '>' + typed] = (db.conf[id + '>' + typed] || 0) + 1;
+    }
+    T.errors++;
+    T.dead = false;
+    play('wrong');
+    flashWrong(k);
+  }
+  updateCursor();
+  updateLive();
+}
+
+function fmtTime(sec) {
+  sec = Math.round(sec);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+function cleanCount() { return T.pos - T.errAt.slice(0, T.pos).filter(Boolean).length; }
+
+function updateLive() {
+  const el = T.start ? (performance.now() - T.start) / 1000 : 0;
+  const wpm = el > 1 ? (T.pos / 5) / (el / 60) : 0;
+  const acc = T.pos ? cleanCount() / T.pos * 100 : 100;
+  $('l-wpm').textContent = Math.round(wpm);
+  $('l-acc').textContent = Math.round(acc) + '%';
+  $('l-time').textContent = fmtTime(el);
+  $('l-prog').textContent = Math.round(T.pos / T.text.length * 100) + '%';
+}
+setInterval(() => { if (T && T.start && !T.done) updateLive(); }, 250);
+
+// ---------- Aprender de cada sesión ----------
+// Los datos viejos pierden peso: lo de hace ~5000 teclas cuenta la mitad que lo de hoy.
+// Así, cuando mejoras una tecla, la app lo nota y deja de insistir en ella.
+const HALF_LIFE = 5000;
+function decayAll(chars) {
+  const f = Math.pow(0.5, chars / HALF_LIFE);
+  const r3 = v => Math.round(v * f * 1000) / 1000;
+  for (const group of [db.keys, db.bigrams]) {
+    for (const [k, st] of Object.entries(group)) {
+      st.n = r3(st.n); st.err = r3(st.err); st.t = r3(st.t); st.tn = r3(st.tn);
+      if (st.n < 0.5) delete group[k];
+    }
+  }
+  for (const k of Object.keys(db.conf)) { db.conf[k] = r3(db.conf[k]); if (db.conf[k] < 0.3) delete db.conf[k]; }
+}
+
+function learnFromSession() {
+  const now = sessNo();
+  const res = { added: [], learned: [], better: [], worse: [] };
+  if (!T.agil && !T.noReview) {
+    const bad = new Set(), ok = new Set(), re = /\S+/g;
+    let m;
+    while ((m = re.exec(T.text))) {
+      const w = T.src.slice(m.index, m.index + m[0].length).toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
+      if (w.length < 3) continue;
+      db.seen.w[w] = now;
+      (T.errAt.slice(m.index, m.index + m[0].length).some(Boolean) ? bad : ok).add(w);
+    }
+    for (const w of bad) {
+      const r = db.review[w];
+      if (!r) res.added.push(w);
+      db.review[w] = { box: 0, due: now, fails: (r ? r.fails : 0) + 1 };
+    }
+    for (const w of ok) {
+      const r = db.review[w];
+      if (!r || bad.has(w)) continue;
+      r.box++;
+      if (r.box >= REVIEW_GAP.length) { delete db.review[w]; res.learned.push(w); }
+      else r.due = now + REVIEW_GAP[r.box];
+    }
+    const entries = Object.entries(db.review);
+    if (entries.length > 250) entries.sort((a, b) => a[1].fails - b[1].fails || b[1].box - a[1].box)
+      .slice(0, entries.length - 250).forEach(([w]) => delete db.review[w]);
+  }
+  for (const [w, i] of Object.entries(db.seen.w)) if (now - i > 15) delete db.seen.w[w];
+  for (const id of T.seenT || []) db.seen.t[id] = now;
+
+  // ¿Cómo te fue hoy en cada tecla/combinación comparado con antes?
+  const diffs = [];
+  for (const [key, st] of Object.entries(T.sk)) {
+    if (st.n < 5) continue;
+    const [kind, id] = [key[0], key.slice(2)];
+    if (!/^[a-zñ]{1,2}$/.test(id)) continue;
+    const total = kind === 'k' ? db.keys[id] : db.bigrams[id];
+    if (!total) continue;
+    const prevN = total.n - st.n, prevErr = total.err - st.err;
+    if (prevN < 6) continue;
+    const before = prevErr / prevN * 100, today = st.err / st.n * 100;
+    diffs.push({ label: id.toUpperCase(), before, today, d: today - before });
+  }
+  const fmt = x => `<b>${x.label}</b> ${Math.round(x.before)}% → ${Math.round(x.today)}%`;
+  res.better = diffs.filter(x => x.d <= -4).sort((a, b) => a.d - b.d).slice(0, 4).map(fmt);
+  res.worse = diffs.filter(x => x.d >= 6).sort((a, b) => b.d - a.d).slice(0, 3).map(fmt);
+  return res;
+}
+
+function renderLearn(res) {
+  const rows = [];
+  if (res.better.length) rows.push(`<span class="up">▲ Mejoraste en</span> ${res.better.join(' · ')} <small>(errores antes → hoy)</small>`);
+  if (res.worse.length) rows.push(`<span class="down">▼ Hoy te costó más</span> ${res.worse.join(' · ')}`);
+  const queue = Object.keys(db.review).length;
+  const shown = ws => ws.slice(0, 6).map(w => db.settings.tildes ? w : stripAcc(w)).join(', ') + (ws.length > 6 ? '…' : '');
+  if (res.added.length) rows.push(`<b>${res.added.length}</b> palabra${res.added.length > 1 ? 's' : ''} nueva${res.added.length > 1 ? 's' : ''} para repasar: ${shown(res.added)}`);
+  if (res.learned.length) rows.push(`<span class="up">✓</span> Ya dominas: ${shown(res.learned)}`);
+  if (queue) rows.push(`Palabras en repaso: <b>${queue}</b> · volverán a salir hasta que las escribas bien varias veces`);
+  const next = focusLabel(weakProfile());
+  if (next) rows.push(`Para la próxima: ${next.replace('Enfoque: ', '')}`);
+  $('r-learn').innerHTML = rows.map(r => `<div>${r}</div>`).join('');
+}
+
+function finish() {
+  T.done = true;
+  play('bell', 0.08);
+  const secs = (T.last - T.start) / 1000;
+  const wpm = (T.text.length / 5) / (secs / 60);
+  const acc = cleanCount() / T.text.length * 100;
+  const session = { d: Date.now(), wpm: +wpm.toFixed(1), acc: +acc.toFixed(1), secs: +secs.toFixed(1), chars: T.text.length, mode: db.settings.mode };
+  if (T.agil) session.drill = db.settings.drill;
+  const prev = db.sessions.filter(s => kindOf(s) === kindOf(session)).slice(-10);
+  db.sessions.push(session);
+  const learned = learnFromSession();
+  decayAll(T.text.length);
+  save();
+  renderLearn(learned);
+
+  $('r-wpm').textContent = Math.round(wpm);
+  $('r-acc').textContent = Math.round(acc) + '%';
+  $('r-time').textContent = fmtTime(secs);
+  if (prev.length) {
+    const avg = prev.reduce((a, s) => a + s.wpm, 0) / prev.length;
+    const diff = Math.round(wpm - avg);
+    $('r-cmp').textContent = diff >= 0
+      ? `${diff} PPM por encima de tu promedio reciente (${Math.round(avg)}).`
+      : `${-diff} PPM por debajo de tu promedio reciente (${Math.round(avg)}). Ve con calma: la precisión primero.`;
+  } else $('r-cmp').textContent = '¡Primera sesión registrada! Sigue practicando para ver tu progreso.';
+  const bad = Object.entries(T.keyErr).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $('r-keys').textContent = bad.length
+    ? 'Fallaste en: ' + bad.map(([k, n]) => `${keyLabel(k)} (${n})`).join(', ')
+    : 'Sin errores. ¡Excelente!';
+  $('typing').classList.add('hidden');
+  $('results').classList.remove('hidden');
+  clearKbMarks();
+}
+
+function keyLabel(id) { return id === 'space' ? 'espacio' : id.toUpperCase(); }
+const kindOf = s => s.mode === 'agilidad' ? 'agil' : 'texto';
+
+document.addEventListener('keydown', e => {
+  if (view !== 'practice' || !T) return;
+  const tag = e.target.tagName;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'Tab' || e.key === 'Escape') { e.preventDefault(); newTest(); return; }
+  if (e.key === 'Dead') { e.preventDefault(); T.dead = true; play('key'); updateCursor(); return; }
+  if (e.ctrlKey || e.metaKey || e.key.length !== 1) return;
+  e.preventDefault();
+  handleKey(e.key);
+});
+
+// ---------- Controles ----------
+function syncControls() {
+  const s = db.settings;
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === s.mode));
+  $('len').value = s.len;
+  $('drill').value = s.drill;
+  $('sound').value = String(s.sound);
+  $('drill-wrap').classList.toggle('hidden', s.mode !== 'agilidad');
+  $('tema').value = s.tema;
+  $('tema-wrap').classList.toggle('hidden', !['comunes', 'frases'].includes(s.mode));
+  for (const o of $('len').options) o.textContent = `${s.mode === 'frases' ? '~' : ''}${o.value} ${s.mode === 'agilidad' ? 'grupos' : 'palabras'}`;
+  $('tildes').checked = s.tildes;
+  $('punct').checked = s.punct;
+  $('showkb').checked = s.showkb;
+  $('custom').value = s.custom;
+  $('custom').classList.toggle('hidden', s.mode !== 'propio');
+  $('kbwrap').classList.toggle('hidden', !s.showkb);
+}
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  db.settings.mode = b.dataset.mode; save(); syncControls(); b.blur(); newTest();
+});
+$('len').addEventListener('change', e => { db.settings.len = +e.target.value; save(); e.target.blur(); newTest(); });
+$('sound').addEventListener('change', e => { db.settings.sound = +e.target.value; save(); e.target.blur(); play('key'); });
+$('tema').addEventListener('change', e => { db.settings.tema = e.target.value; save(); e.target.blur(); newTest(); });
+$('drill').addEventListener('change', e => { db.settings.drill = e.target.value; save(); e.target.blur(); newTest(); });
+for (const id of ['tildes', 'punct', 'showkb']) {
+  $(id).addEventListener('change', e => {
+    db.settings[id] = e.target.checked; save(); syncControls(); e.target.blur();
+    if (id !== 'showkb') newTest();
+  });
+}
+$('custom').addEventListener('input', e => { db.settings.custom = e.target.value; save(); });
+$('custom').addEventListener('blur', () => newTest());
+$('again').addEventListener('click', e => { e.target.blur(); newTest(); });
+$('to-stats').addEventListener('click', () => show('stats'));
+
+// ---------- Vistas ----------
+let view = 'practice';
+function show(v) {
+  view = v;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  $('view-practice').classList.toggle('hidden', v !== 'practice');
+  $('view-stats').classList.toggle('hidden', v !== 'stats');
+  if (v === 'stats') renderStats();
+  else if (T && T.done) newTest();
+}
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  b.blur(); show(b.dataset.view);
+});
+
+// ---------- Estadísticas ----------
+const fmtDate = d => new Date(d).toLocaleDateString('es', { day: 'numeric', month: 'short' });
+
+let statKind = 'all';
+$('statkind').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  statKind = b.dataset.k;
+  document.querySelectorAll('#statkind button').forEach(x => x.classList.toggle('on', x === b));
+  renderStats();
+});
+
+function renderStats() {
+  const S = statKind === 'all' ? db.sessions : db.sessions.filter(s => kindOf(s) === statKind);
+  const last10 = S.slice(-10);
+  const avg = (a, k) => a.length ? a.reduce((x, s) => x + s[k], 0) / a.length : 0;
+  const first10 = S.slice(0, 10);
+  const totalMin = S.reduce((x, s) => x + s.secs, 0) / 60;
+  const gain = S.length >= 15 ? Math.round(avg(last10, 'wpm') - avg(first10, 'wpm')) : null;
+  $('tiles').innerHTML = `
+    <div class="tile"><div>Sesiones</div><b>${S.length}</b></div>
+    <div class="tile"><div>Mejor velocidad</div><b>${S.length ? Math.round(Math.max(...S.map(s => s.wpm))) : '—'} <small>PPM</small></b></div>
+    <div class="tile"><div>Promedio últimas 10</div><b>${S.length ? Math.round(avg(last10, 'wpm')) : '—'} <small>PPM</small></b></div>
+    <div class="tile"><div>Precisión últimas 10</div><b>${S.length ? Math.round(avg(last10, 'acc')) + '%' : '—'}</b></div>
+    <div class="tile"><div>${gain === null ? 'Tiempo practicado' : 'Mejora desde el inicio'}</div><b>${gain === null ? Math.round(totalMin) + ' <small>min</small>' : (gain >= 0 ? '+' : '') + gain + ' <small>PPM</small>'}</b></div>`;
+
+  const recent = S.slice(-60);
+  const offset = S.length - recent.length;
+  lineChart($('ch-wpm'), recent.map((s, i) => ({ y: s.wpm, n: offset + i + 1, d: s.d })), { unit: ' PPM', lo: 0 });
+  const minAcc = recent.length ? Math.min(...recent.map(s => s.acc)) : 90;
+  lineChart($('ch-acc'), recent.map((s, i) => ({ y: s.acc, n: offset + i + 1, d: s.d })), { unit: '%', lo: Math.max(0, Math.floor((minAcc - 3) / 5) * 5), hi: 100 });
+  renderHeat();
+  renderWorst();
+  renderWorstBigrams();
+  renderConf();
+  renderReview();
+}
+
+function renderWorstBigrams() {
+  const list = bigramList()
+    .filter(x => /^[a-zñ]{2}$/.test(x.bi))
+    .sort((a, b) => b.rate - a.rate || b.ms - a.ms)
+    .slice(0, 10);
+  $('practice-combos').classList.toggle('hidden', !list.length);
+  if (!list.length) { $('worst-bi').innerHTML = '<p class="empty">Practica un poco más para ver qué pares de letras te cuestan.</p>'; return; }
+  $('worst-bi').innerHTML = `<table>
+    <tr><th>Combinación</th><th>Errores</th><th>Tiempo medio</th><th>Veces (reciente)</th><th>Dedos</th></tr>
+    ${list.map(x => `<tr>
+      <td class="key">${x.bi.toUpperCase()}</td>
+      <td>${x.rate.toFixed(1)}%</td>
+      <td>${x.ms ? Math.round(x.ms) + ' ms' : '—'}</td>
+      <td>${Math.round(x.n)}</td>
+      <td>${[...x.bi].map(c => FINGER_NAME[KEYS[c].f]).join(' → ')}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+function renderConf() {
+  const list = topConfusions(8);
+  $('practice-conf').classList.toggle('hidden', !list.length);
+  if (!list.length) { $('conf').innerHTML = '<p class="empty">Aún no hay confusiones claras entre teclas. ¡Bien!</p>'; return; }
+  $('conf').innerHTML = `<table>
+    <tr><th>Debías pulsar</th><th>Pulsaste</th><th>Veces (reciente)</th><th>Dedos</th></tr>
+    ${list.map(x => `<tr>
+      <td class="key">${x.a.toUpperCase()}</td>
+      <td class="key">${x.b.toUpperCase()}</td>
+      <td>${Math.round(x.n)}</td>
+      <td>${FINGER_NAME[KEYS[x.a].f]} / ${FINGER_NAME[KEYS[x.b].f]}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+function renderReview() {
+  const all = Object.entries(db.review);
+  $('practice-review').classList.toggle('hidden', !all.length);
+  if (!all.length) { $('review').innerHTML = '<p class="empty">Cuando falles una palabra, aparecerá aquí y volverá en tus próximas prácticas hasta que la domines.</p>'; return; }
+  const due = dueReview().length;
+  const top = all.sort((a, b) => b[1].fails - a[1].fails || a[1].box - b[1].box).slice(0, 40);
+  $('review').innerHTML = `<p class="tips">${all.length} palabras en repaso · ${due} tocan en la próxima práctica.
+    Cada palabra necesita ${REVIEW_GAP.length} aciertos, cada vez más espaciados, para darse por aprendida.</p>
+    <div class="chips">${top.map(([w, r]) => `<span>${w}<small>${'●'.repeat(r.box)}${'○'.repeat(REVIEW_GAP.length - r.box)}</small></span>`).join('')}</div>`;
+}
+$('practice-conf').addEventListener('click', () => {
+  db.settings.mode = 'agilidad'; db.settings.drill = 'confusiones'; save(); syncControls(); show('practice'); newTest();
+});
+$('practice-review').addEventListener('click', () => {
+  db.settings.mode = 'debiles'; save(); syncControls(); show('practice'); newTest();
+});
+$('practice-combos').addEventListener('click', () => {
+  db.settings.mode = 'agilidad'; db.settings.drill = 'combos'; save(); syncControls(); show('practice'); newTest();
+});
+
+$('export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(db)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `teclea-rapido-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$('import').addEventListener('click', () => $('import-file').click());
+$('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data.sessions)) throw new Error();
+    if (!confirm(`La copia tiene ${data.sessions.length} sesiones. ¿Reemplazar tu historial actual (${db.sessions.length} sesiones) por esta copia?`)) return;
+    db = withDefaults(data); save(); syncControls(); renderStats();
+  } catch (err) { alert('Ese archivo no parece una copia de Teclea Rápido.'); }
+});
+
+function lineChart(el, pts, { unit, lo, hi }) {
+  if (!pts.length) { el.innerHTML = '<p class="empty">Aún no hay sesiones. Completa una práctica para ver tu progreso aquí.</p>'; return; }
+  const W = el.clientWidth || 600, H = 220, m = { t: 14, r: 14, b: 26, l: 38 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ys = pts.map(p => p.y);
+  if (hi === undefined) {
+    const raw = Math.max(10, ...ys);
+    const step = raw <= 40 ? 10 : raw <= 100 ? 20 : 25;
+    hi = Math.ceil(raw / step) * step;
+  }
+  const x = i => m.l + (pts.length === 1 ? iw / 2 : i * iw / (pts.length - 1));
+  const y = v => m.t + ih - (v - lo) / (hi - lo) * ih;
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (hi - lo) * i / 4;
+    g += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/>
+          <text class="ax" x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`;
+  }
+  const ticks = pts.length <= 8 ? pts.map((_, i) => i) : [0, Math.floor((pts.length - 1) / 2), pts.length - 1];
+  for (const i of ticks) g += `<text class="ax" x="${x(i)}" y="${H - 6}" text-anchor="middle">#${pts[i].n}</text>`;
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join('');
+  const dots = pts.length <= 40
+    ? pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.y)}" r="3.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`).join('')
+    : '';
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">
+      ${g}
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      <line class="xh" y1="${m.t}" y2="${m.t + ih}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>
+      <circle class="hd" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" opacity="0"/>
+      <rect class="hit" x="${m.l - 10}" y="0" width="${iw + 20}" height="${H}" fill="transparent"/>
+    </svg><div class="tip"></div>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
+  const xh = el.querySelector('.xh'), hd = el.querySelector('.hd');
+  el.querySelector('.hit').addEventListener('mousemove', ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) * W / r.width;
+    const i = pts.length === 1 ? 0 : Math.max(0, Math.min(pts.length - 1, Math.round((px - m.l) / (iw / (pts.length - 1)))));
+    const p = pts[i];
+    xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('opacity', 1);
+    hd.setAttribute('cx', x(i)); hd.setAttribute('cy', y(p.y)); hd.setAttribute('opacity', 1);
+    tip.innerHTML = `Sesión ${p.n} · ${fmtDate(p.d)} · <b>${Math.round(p.y)}${unit}</b>`;
+    tip.style.left = (x(i) * r.width / W) + 'px';
+    tip.style.top = (y(p.y) * r.height / H - 10) + 'px';
+    tip.style.opacity = 1;
+  });
+  el.querySelector('.hit').addEventListener('mouseleave', () => {
+    tip.style.opacity = 0; xh.setAttribute('opacity', 0); hd.setAttribute('opacity', 0);
+  });
+}
+
+let heatMode = 'err';
+const heatEls = buildKeyboard($('heatkb'));
+const heatTip = document.createElement('div');
+heatTip.className = 'tip';
+$('heatkb').parentElement.appendChild(heatTip);
+
+function renderHeat() {
+  const vals = {};
+  for (const [id, s] of Object.entries(db.keys)) {
+    if (s.n < 3) continue;
+    vals[id] = heatMode === 'err' ? s.err / s.n * 100 : (s.tn ? s.t / s.tn : null);
+  }
+  const nums = Object.values(vals).filter(v => v !== null);
+  const max = nums.length ? Math.max(...nums) : 0;
+  const min = heatMode === 'err' ? 0 : (nums.length ? Math.min(...nums) : 0);
+  for (const [id, el] of Object.entries(heatEls)) {
+    const v = vals[id];
+    if (v === undefined || v === null) { el.style.background = ''; el.style.color = ''; continue; }
+    const p = max > min ? (v - min) / (max - min) : 0;
+    el.style.background = `color-mix(in oklab, var(--heat) ${Math.round(p * 85)}%, var(--key))`;
+    el.style.color = p > 0.6 ? '#fff' : '';
+  }
+  $('hl-lo').textContent = heatMode === 'err' ? '0%' : (nums.length ? Math.round(min) + ' ms' : '');
+  $('hl-hi').textContent = nums.length ? (heatMode === 'err' ? max.toFixed(1) + '% de errores' : Math.round(max) + ' ms por tecla') : 'sin datos aún';
+  $('hl-note').textContent = '· pasa el cursor por una tecla para ver el detalle';
+}
+$('heatkb').addEventListener('mousemove', e => {
+  const k = e.target.closest('.k[data-id]');
+  if (!k) { heatTip.style.opacity = 0; return; }
+  const s = db.keys[k.dataset.id];
+  const box = $('heatkb').parentElement.getBoundingClientRect(), kr = k.getBoundingClientRect();
+  heatTip.innerHTML = s && s.n
+    ? `<b>${keyLabel(k.dataset.id)}</b> · ${Math.round(s.n)} veces · ${(s.err / s.n * 100).toFixed(1)}% errores · ${s.tn ? Math.round(s.t / s.tn) + ' ms' : '—'}`
+    : `<b>${keyLabel(k.dataset.id)}</b> · sin datos`;
+  heatTip.style.left = (kr.left - box.left + kr.width / 2) + 'px';
+  heatTip.style.top = (kr.top - box.top - 6) + 'px';
+  heatTip.style.opacity = 1;
+});
+$('heatkb').addEventListener('mouseleave', () => heatTip.style.opacity = 0);
+$('heatmode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  heatMode = b.dataset.h;
+  document.querySelectorAll('#heatmode button').forEach(x => x.classList.toggle('on', x === b));
+  renderHeat();
+});
+
+function renderWorst() {
+  const list = Object.entries(db.keys)
+    .filter(([, s]) => s.n >= 5)
+    .map(([id, s]) => ({ id, ...s, rate: s.err / s.n * 100, ms: s.tn ? s.t / s.tn : 0 }))
+    .sort((a, b) => b.rate - a.rate || b.ms - a.ms)
+    .slice(0, 10);
+  if (!list.length) { $('worst').innerHTML = '<p class="empty">Practica un poco más para ver qué teclas te cuestan.</p>'; return; }
+  $('worst').innerHTML = `<table>
+    <tr><th>Tecla</th><th>Errores</th><th>Tiempo medio</th><th>Veces (reciente)</th><th>Dedo</th></tr>
+    ${list.map(k => `<tr>
+      <td class="key">${keyLabel(k.id)}</td>
+      <td>${k.rate.toFixed(1)}%</td>
+      <td>${k.ms ? Math.round(k.ms) + ' ms' : '—'}</td>
+      <td>${Math.round(k.n)}</td>
+      <td>${KEYS[k.id] && KEYS[k.id].f ? FINGER_NAME[KEYS[k.id].f] : '—'}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+$('reset').addEventListener('click', () => {
+  if (!confirm('¿Seguro? Se borrarán todas tus sesiones y estadísticas.')) return;
+  const settings = db.settings;
+  db = defaults(); db.settings = settings; save(); renderStats();
+});
+window.addEventListener('resize', () => { if (view === 'stats') renderStats(); });
+
+initStorage().then(() => { syncControls(); newTest(); });
+</script>
+</body>
+</html>

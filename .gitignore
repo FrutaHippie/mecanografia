@@ -1,0 +1,7 @@
+# Historial personal de cada usuario
+datos*.json
+
+# Archivos temporales
+__pycache__/
+*.tmp
+.DS_Store
